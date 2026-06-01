@@ -3,8 +3,17 @@ package domain
 import "fmt"
 
 type DecisionProvider interface {
-	Speak(player Player, state GameState) (string, error)
-	WerewolfTarget(player Player, state GameState) (int, error)
+	Speak(player Player, context DecisionContext) (string, error)
+	VoteTarget(player Player, context DecisionContext) (int, error)
+	WerewolfTarget(player Player, context DecisionContext) (int, error)
+}
+
+type DecisionContext struct {
+	Round           int
+	Phase           Phase
+	Players         []Player
+	Messages        []Message
+	LastNightKilled *int
 }
 
 func NewGame() GameState {
@@ -46,7 +55,7 @@ func NewGame() GameState {
 }
 
 func AdvancePhase(state GameState, provider DecisionProvider) (GameState, error) {
-	if CheckGameEnd(&state) {
+	if ApplyGameEndIfNeeded(&state) {
 		return state, nil
 	}
 
@@ -63,7 +72,7 @@ func AdvancePhase(state GameState, provider DecisionProvider) (GameState, error)
 	}
 }
 
-func CheckGameEnd(state *GameState) bool {
+func ApplyGameEndIfNeeded(state *GameState) bool {
 	aliveWolves := 0
 	aliveVillage := 0
 	for _, player := range state.Players {
@@ -92,6 +101,10 @@ func CheckGameEnd(state *GameState) bool {
 	return false
 }
 
+func CheckGameEnd(state *GameState) bool {
+	return ApplyGameEndIfNeeded(state)
+}
+
 func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 	if state.Round == 1 {
 		for _, player := range state.Players {
@@ -100,7 +113,11 @@ func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 			}
 			content := fmt.Sprintf("大家好，我是%d号%s。", player.ID, player.Name)
 			if provider != nil {
-				if speech, err := provider.Speak(player, state); err == nil && speech != "" {
+				speech, err := provider.Speak(player, NewDecisionContext(state))
+				if err != nil {
+					return state, fmt.Errorf("generate speech for player %d: %w", player.ID, err)
+				}
+				if speech != "" {
 					content = speech
 				}
 			}
@@ -117,29 +134,56 @@ func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 		return state, nil
 	}
 
-	state.Messages = append(state.Messages, Message{
-		SpeakerID: 0,
-		Speaker:   "系统",
-		Content:   "白天讨论结束，进入放逐投票。",
-		Phase:     PhaseDay,
-		Round:     state.Round,
-		Type:      MessageTypeVote,
-	})
+	targetID := firstAlivePlayerID(state)
+	if provider != nil {
+		voters := alivePlayers(state)
+		if len(voters) > 0 {
+			candidate, err := provider.VoteTarget(voters[0], NewDecisionContext(state))
+			if err != nil {
+				return state, fmt.Errorf("vote decision for player %d: %w", voters[0].ID, err)
+			}
+			if isAlivePlayer(state, candidate) {
+				targetID = candidate
+			}
+		}
+	}
+	if targetID != 0 {
+		for i := range state.Players {
+			if state.Players[i].ID == targetID {
+				state.Players[i].Alive = false
+				state.Messages = append(state.Messages, Message{
+					SpeakerID: 0,
+					Speaker:   "系统",
+					Content:   fmt.Sprintf("%d号%s被放逐。", state.Players[i].ID, state.Players[i].Name),
+					Phase:     PhaseDay,
+					Round:     state.Round,
+					Type:      MessageTypeVote,
+				})
+				break
+			}
+		}
+	}
+	ApplyGameEndIfNeeded(&state)
+	if state.Ended {
+		return state, nil
+	}
 	state.Phase = PhaseNight
 	return state, nil
 }
 
 func advanceNight(state GameState, provider DecisionProvider) (GameState, error) {
 	wolves := alivePlayersByTeam(state, TeamWolf)
-	if len(wolves) == 0 || CheckGameEnd(&state) {
+	if len(wolves) == 0 || ApplyGameEndIfNeeded(&state) {
 		return state, nil
 	}
 
 	targetID := 0
 	if provider != nil {
-		if candidate, err := provider.WerewolfTarget(wolves[0], state); err == nil {
-			targetID = candidate
+		candidate, err := provider.WerewolfTarget(wolves[0], NewDecisionContext(state))
+		if err != nil {
+			return state, fmt.Errorf("werewolf target decision for player %d: %w", wolves[0].ID, err)
 		}
+		targetID = candidate
 	}
 	if !isLegalWerewolfTarget(state, targetID) {
 		targetID = firstLegalWerewolfTarget(state)
@@ -154,12 +198,57 @@ func advanceNight(state GameState, provider DecisionProvider) (GameState, error)
 		}
 	}
 
-	CheckGameEnd(&state)
+	ApplyGameEndIfNeeded(&state)
 	if !state.Ended {
 		state.Round++
 		state.Phase = PhaseDay
 	}
 	return state, nil
+}
+
+func NewDecisionContext(state GameState) DecisionContext {
+	players := append([]Player(nil), state.Players...)
+	messages := append([]Message(nil), state.Messages...)
+	var killed *int
+	if state.LastNightKilled != nil {
+		value := *state.LastNightKilled
+		killed = &value
+	}
+	return DecisionContext{
+		Round:           state.Round,
+		Phase:           state.Phase,
+		Players:         players,
+		Messages:        messages,
+		LastNightKilled: killed,
+	}
+}
+
+func alivePlayers(state GameState) []Player {
+	players := make([]Player, 0)
+	for _, player := range state.Players {
+		if player.Alive {
+			players = append(players, player)
+		}
+	}
+	return players
+}
+
+func firstAlivePlayerID(state GameState) int {
+	for _, player := range state.Players {
+		if player.Alive {
+			return player.ID
+		}
+	}
+	return 0
+}
+
+func isAlivePlayer(state GameState, id int) bool {
+	for _, player := range state.Players {
+		if player.ID == id {
+			return player.Alive
+		}
+	}
+	return false
 }
 
 func alivePlayersByTeam(state GameState, team Team) []Player {

@@ -1,18 +1,27 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 type staticDecisionProvider struct {
 	speech         string
+	voteTarget     int
 	werewolfTarget int
+	err            error
 }
 
-func (p staticDecisionProvider) Speak(Player, GameState) (string, error) {
-	return p.speech, nil
+func (p staticDecisionProvider) Speak(Player, DecisionContext) (string, error) {
+	return p.speech, p.err
 }
 
-func (p staticDecisionProvider) WerewolfTarget(Player, GameState) (int, error) {
-	return p.werewolfTarget, nil
+func (p staticDecisionProvider) VoteTarget(Player, DecisionContext) (int, error) {
+	return p.voteTarget, p.err
+}
+
+func (p staticDecisionProvider) WerewolfTarget(Player, DecisionContext) (int, error) {
+	return p.werewolfTarget, p.err
 }
 
 func TestStartGameEntersDayOne(t *testing.T) {
@@ -22,6 +31,45 @@ func TestStartGameEntersDayOne(t *testing.T) {
 	}
 	if len(state.Players) != 10 {
 		t.Fatalf("expected 10 players, got %d", len(state.Players))
+	}
+}
+
+func TestProviderErrorIsReturned(t *testing.T) {
+	state := NewGame()
+	_, err := AdvancePhase(state, staticDecisionProvider{err: errors.New("ai unavailable")})
+	if err == nil {
+		t.Fatal("expected provider error")
+	}
+}
+
+func TestDecisionContextDoesNotMutateState(t *testing.T) {
+	state := NewGame()
+	context := NewDecisionContext(state)
+	context.Players[0].Alive = false
+	if !state.Players[0].Alive {
+		t.Fatal("decision context must not mutate source state")
+	}
+}
+
+func TestSecondDayVoteExilesTarget(t *testing.T) {
+	state := NewGame()
+	state.Round = 2
+	state.Phase = PhaseDay
+	next, err := AdvancePhase(state, staticDecisionProvider{voteTarget: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Players[3].Alive {
+		t.Fatal("expected voted target to be exiled")
+	}
+	foundVote := false
+	for _, msg := range next.Messages {
+		if msg.Type == MessageTypeVote {
+			foundVote = true
+		}
+	}
+	if !foundVote {
+		t.Fatal("expected vote message")
 	}
 }
 
