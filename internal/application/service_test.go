@@ -32,24 +32,30 @@ func (r *fakeRepository) Load(context.Context) (domain.GameState, error) {
 }
 
 type fakeAI struct {
-	err error
+	err       error
+	failures  int
+	speakCall int
 }
 
-func (a fakeAI) Speak(domain.Player, domain.DecisionContext) (string, error) {
-	return "测试发言", a.err
+func (a *fakeAI) Speak(domain.Player, domain.DecisionContext) (string, error) {
+	a.speakCall++
+	if a.speakCall <= a.failures {
+		return "", a.err
+	}
+	return "测试发言", nil
 }
 
-func (a fakeAI) VoteTarget(domain.Player, domain.DecisionContext) (int, error) {
+func (a *fakeAI) VoteTarget(domain.Player, domain.DecisionContext) (int, error) {
 	return 4, a.err
 }
 
-func (a fakeAI) WerewolfTarget(domain.Player, domain.DecisionContext) (int, error) {
+func (a *fakeAI) WerewolfTarget(domain.Player, domain.DecisionContext) (int, error) {
 	return 4, a.err
 }
 
 func TestStartGameSavesInitializedState(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, fakeAI{})
+	service := NewService(repository, &fakeAI{})
 
 	state, err := service.StartGame(context.Background())
 	if err != nil {
@@ -65,7 +71,7 @@ func TestStartGameSavesInitializedState(t *testing.T) {
 
 func TestNextPhaseSavesUpdatedState(t *testing.T) {
 	repository := &fakeRepository{state: domain.NewGame()}
-	service := NewService(repository, fakeAI{})
+	service := NewService(repository, &fakeAI{})
 
 	state, err := service.NextPhase(context.Background())
 	if err != nil {
@@ -81,7 +87,7 @@ func TestNextPhaseSavesUpdatedState(t *testing.T) {
 
 func TestAIFailureFallsBackToLegalAction(t *testing.T) {
 	repository := &fakeRepository{state: domain.NewGame()}
-	service := NewService(repository, fakeAI{err: errors.New("model unavailable")})
+	service := NewService(repository, &fakeAI{err: errors.New("model unavailable"), failures: 99})
 
 	state, err := service.NextPhase(context.Background())
 	if err != nil {
@@ -94,10 +100,27 @@ func TestAIFailureFallsBackToLegalAction(t *testing.T) {
 
 func TestRepositoryFailurePropagates(t *testing.T) {
 	repository := &fakeRepository{saveErr: errors.New("disk full")}
-	service := NewService(repository, fakeAI{})
+	service := NewService(repository, &fakeAI{})
 
 	_, err := service.StartGame(context.Background())
 	if err == nil {
 		t.Fatal("expected repository error")
+	}
+}
+
+func TestAIFailureRetriesBeforeFallback(t *testing.T) {
+	repository := &fakeRepository{state: domain.NewGame()}
+	ai := &fakeAI{err: errors.New("temporary model error"), failures: 1}
+	service := NewService(repository, ai)
+
+	state, err := service.NextPhase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ai.speakCall < 2 {
+		t.Fatalf("expected bounded retry, got %d calls", ai.speakCall)
+	}
+	if state.Phase != domain.PhaseNight {
+		t.Fatalf("expected retry to advance phase, got %s", state.Phase)
 	}
 }

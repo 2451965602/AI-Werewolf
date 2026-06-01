@@ -113,7 +113,7 @@ func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 			}
 			content := fmt.Sprintf("大家好，我是%d号%s。", player.ID, player.Name)
 			if provider != nil {
-				speech, err := provider.Speak(player, NewDecisionContext(state))
+				speech, err := provider.Speak(player, NewDecisionContextForPlayer(state, player))
 				if err != nil {
 					return state, fmt.Errorf("generate speech for player %d: %w", player.ID, err)
 				}
@@ -138,7 +138,7 @@ func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 	if provider != nil {
 		voters := alivePlayers(state)
 		if len(voters) > 0 {
-			candidate, err := provider.VoteTarget(voters[0], NewDecisionContext(state))
+			candidate, err := provider.VoteTarget(voters[0], NewDecisionContextForPlayer(state, voters[0]))
 			if err != nil {
 				return state, fmt.Errorf("vote decision for player %d: %w", voters[0].ID, err)
 			}
@@ -179,7 +179,7 @@ func advanceNight(state GameState, provider DecisionProvider) (GameState, error)
 
 	targetID := 0
 	if provider != nil {
-		candidate, err := provider.WerewolfTarget(wolves[0], NewDecisionContext(state))
+		candidate, err := provider.WerewolfTarget(wolves[0], NewDecisionContextForPlayer(state, wolves[0]))
 		if err != nil {
 			return state, fmt.Errorf("werewolf target decision for player %d: %w", wolves[0].ID, err)
 		}
@@ -207,7 +207,20 @@ func advanceNight(state GameState, provider DecisionProvider) (GameState, error)
 }
 
 func NewDecisionContext(state GameState) DecisionContext {
+	return newDecisionContext(state, nil)
+}
+
+func NewDecisionContextForPlayer(state GameState, actor Player) DecisionContext {
+	return newDecisionContext(state, &actor)
+}
+
+func newDecisionContext(state GameState, actor *Player) DecisionContext {
 	players := append([]Player(nil), state.Players...)
+	if actor != nil {
+		for i := range players {
+			players[i] = scopePlayerForActor(players[i], *actor)
+		}
+	}
 	messages := append([]Message(nil), state.Messages...)
 	var killed *int
 	if state.LastNightKilled != nil {
@@ -221,6 +234,18 @@ func NewDecisionContext(state GameState) DecisionContext {
 		Messages:        messages,
 		LastNightKilled: killed,
 	}
+}
+
+func scopePlayerForActor(player Player, actor Player) Player {
+	if player.ID == actor.ID {
+		return player
+	}
+	if actor.Team == TeamWolf && player.Team == TeamWolf {
+		return player
+	}
+	player.Role = ""
+	player.Team = ""
+	return player
 }
 
 func alivePlayers(state GameState) []Player {

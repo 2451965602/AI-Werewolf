@@ -27,6 +27,8 @@ type Service struct {
 	hasState   bool
 }
 
+const maxAIAttempts = 2
+
 func NewService(repository StateRepository, ai AIDecisionProvider) *Service {
 	return &Service{repository: repository, ai: ai}
 }
@@ -47,7 +49,13 @@ func (s *Service) NextPhase(ctx context.Context) (domain.GameState, error) {
 		return domain.GameState{}, err
 	}
 
-	next, err := domain.AdvancePhase(state, s.ai)
+	var next domain.GameState
+	for attempt := 0; attempt < maxAIAttempts; attempt++ {
+		next, err = domain.AdvancePhase(state, s.ai)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		next, err = domain.AdvancePhase(state, nil)
 		if err != nil {

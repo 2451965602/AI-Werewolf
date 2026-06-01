@@ -51,6 +51,38 @@ func TestDecisionContextDoesNotMutateState(t *testing.T) {
 	}
 }
 
+func TestDecisionContextScopesPrivateRoles(t *testing.T) {
+	state := NewGame()
+	villager := state.Players[3]
+	context := NewDecisionContextForPlayer(state, villager)
+	for _, player := range context.Players {
+		if player.ID == villager.ID {
+			if player.Role == "" || player.Team == "" {
+				t.Fatal("actor should keep own private role and team")
+			}
+			continue
+		}
+		if player.Role != "" || player.Team != "" {
+			t.Fatalf("non-wolf actor should not see player %d private role/team", player.ID)
+		}
+	}
+}
+
+func TestWerewolfContextIncludesWolfTeammates(t *testing.T) {
+	state := NewGame()
+	wolf := state.Players[0]
+	context := NewDecisionContextForPlayer(state, wolf)
+	visibleWolves := 0
+	for _, player := range context.Players {
+		if player.Team == TeamWolf {
+			visibleWolves++
+		}
+	}
+	if visibleWolves != 3 {
+		t.Fatalf("expected wolf actor to see 3 wolves, got %d", visibleWolves)
+	}
+}
+
 func TestSecondDayVoteExilesTarget(t *testing.T) {
 	state := NewGame()
 	state.Round = 2
