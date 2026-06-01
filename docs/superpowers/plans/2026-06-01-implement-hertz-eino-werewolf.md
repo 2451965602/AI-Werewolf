@@ -2,6 +2,7 @@
 change: implement-hertz-eino-werewolf
 design-doc: docs/superpowers/specs/2026-06-01-implement-hertz-eino-werewolf-design.md
 base-ref: none-not-git-repository
+archived-with: 2026-06-01-implement-hertz-eino-werewolf
 ---
 
 # Implement Hertz Eino Werewolf Implementation Plan
@@ -14,6 +15,7 @@ base-ref: none-not-git-repository
 
 **Tech Stack:** Go 1.22+, Hertz, Eino-compatible AI adapter boundary, JSON file storage, Go standard testing.
 
+archived-with: 2026-06-01-implement-hertz-eino-werewolf
 ---
 
 ## File Structure

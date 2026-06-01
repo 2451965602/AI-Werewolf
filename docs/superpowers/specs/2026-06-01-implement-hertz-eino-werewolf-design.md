@@ -2,6 +2,8 @@
 comet_change: implement-hertz-eino-werewolf
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-01-implement-hertz-eino-werewolf
+status: final
 ---
 
 # Implement Hertz Eino Werewolf — Technical Design
