@@ -58,6 +58,12 @@ type Message struct {
 	Type      MessageType `json:"type"`
 }
 
+type Vote struct {
+	VoterID  int `json:"voterId"`
+	TargetID int `json:"targetId"`
+	Round    int `json:"round"`
+}
+
 type GameState struct {
 	Round           int       `json:"round"`
 	Phase           Phase     `json:"phase"`

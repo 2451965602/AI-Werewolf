@@ -1,0 +1,11 @@
+server:
+  addr: ":8080"
+
+storage:
+  state_path: "data/world_state.json"
+
+ai:
+  provider: "eino"
+  base_url: "https://api.example.com/v1"
+  model: "deepseek-chat"
+  api_key_env: "OPENAI_API_KEY"

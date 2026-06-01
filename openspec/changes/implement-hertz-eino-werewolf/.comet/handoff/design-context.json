@@ -1,0 +1,17 @@
+{
+  "change": "implement-hertz-eino-werewolf",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "34add18564d36334bba9c0a6d9fa74db0dc8671e96684939f1ebd11b340b48b6",
+  "files": [
+    { "path": "openspec/changes/implement-hertz-eino-werewolf/proposal.md", "sha256": "c9dea9a1e48d0d740aa434c692890f24e72dc55d8934d380e54d006ec04d5641" },
+    { "path": "openspec/changes/implement-hertz-eino-werewolf/design.md", "sha256": "f4f4847b7cdd3820abe532aa515ab7f5c9cab3423cb25d16c1f4333ca3ee1ebd" },
+    { "path": "openspec/changes/implement-hertz-eino-werewolf/tasks.md", "sha256": "d354f47547bce19dee402b60f32f6795cc8aa52646ee1decf3f5e071beec831c" },
+    { "path": "openspec/changes/implement-hertz-eino-werewolf/specs/werewolf-ai-decision/spec.md", "sha256": "8023dc7489000ad47722196a9e1b5e9e2f9c86fa05660726929836b931a7918d" },
+    { "path": "openspec/changes/implement-hertz-eino-werewolf/specs/werewolf-game-engine/spec.md", "sha256": "21262f8d676b850e5c5a43934b3443f7061b10f7816d03227c9598caa9de8138" },
+    { "path": "openspec/changes/implement-hertz-eino-werewolf/specs/werewolf-hertz-api/spec.md", "sha256": "3b7c402be607b08490a302ae7f5e6c3250c4129259f1fc56a9bd79500173ed03" },
+    { "path": "openspec/changes/implement-hertz-eino-werewolf/specs/werewolf-state-storage/spec.md", "sha256": "1eb741c491884afa3bdffc26f15f2a89ce325ca4af69a9b91cfa13accdff8023" }
+  ]
+}

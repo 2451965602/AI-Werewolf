@@ -1,0 +1,5 @@
+.agents/
+.opencode/
+skills-lock.json
+data/
+*.tmp
