@@ -55,6 +55,7 @@ func NewGame() GameState {
 }
 
 func AdvancePhase(state GameState, provider DecisionProvider) (GameState, error) {
+	state = CloneGameState(state)
 	if ApplyGameEndIfNeeded(&state) {
 		return state, nil
 	}
@@ -208,6 +209,17 @@ func advanceNight(state GameState, provider DecisionProvider) (GameState, error)
 
 func NewDecisionContext(state GameState) DecisionContext {
 	return newDecisionContext(state, nil)
+}
+
+func CloneGameState(state GameState) GameState {
+	clone := state
+	clone.Players = append([]Player(nil), state.Players...)
+	clone.Messages = append([]Message(nil), state.Messages...)
+	if state.LastNightKilled != nil {
+		value := *state.LastNightKilled
+		clone.LastNightKilled = &value
+	}
+	return clone
 }
 
 func NewDecisionContextForPlayer(state GameState, actor Player) DecisionContext {

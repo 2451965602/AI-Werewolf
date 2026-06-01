@@ -108,6 +108,45 @@ func TestRepositoryFailurePropagates(t *testing.T) {
 	}
 }
 
+func TestNextPhaseSaveFailureDoesNotPolluteCachedState(t *testing.T) {
+	initial := domain.NewGame()
+	repository := &fakeRepository{state: initial, saveErr: errors.New("disk full")}
+	service := NewService(repository, &fakeAI{})
+	service.state = initial
+	service.hasState = true
+
+	_, err := service.NextPhase(context.Background())
+	if err == nil {
+		t.Fatal("expected save failure")
+	}
+	state, err := service.GetState(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Phase != domain.PhaseDay {
+		t.Fatalf("expected cached phase to remain day after save failure, got %s", state.Phase)
+	}
+}
+
+func TestGetStateReturnsCopy(t *testing.T) {
+	repository := &fakeRepository{state: domain.NewGame()}
+	service := NewService(repository, &fakeAI{})
+
+	state, err := service.GetState(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.Players[0].Alive = false
+
+	again, err := service.GetState(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !again.Players[0].Alive {
+		t.Fatal("GetState must not expose mutable cached state")
+	}
+}
+
 func TestAIFailureRetriesBeforeFallback(t *testing.T) {
 	repository := &fakeRepository{state: domain.NewGame()}
 	ai := &fakeAI{err: errors.New("temporary model error"), failures: 1}

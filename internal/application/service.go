@@ -9,11 +9,7 @@ import (
 
 var ErrNoGameState = errors.New("game state is not initialized")
 
-type AIDecisionProvider interface {
-	Speak(player domain.Player, context domain.DecisionContext) (string, error)
-	VoteTarget(player domain.Player, context domain.DecisionContext) (int, error)
-	WerewolfTarget(player domain.Player, context domain.DecisionContext) (int, error)
-}
+type AIDecisionProvider = domain.DecisionProvider
 
 type StateRepository interface {
 	Save(context.Context, domain.GameState) error
@@ -40,7 +36,7 @@ func (s *Service) StartGame(ctx context.Context) (domain.GameState, error) {
 	}
 	s.state = state
 	s.hasState = true
-	return state, nil
+	return domain.CloneGameState(state), nil
 }
 
 func (s *Service) NextPhase(ctx context.Context) (domain.GameState, error) {
@@ -68,7 +64,7 @@ func (s *Service) NextPhase(ctx context.Context) (domain.GameState, error) {
 	}
 	s.state = next
 	s.hasState = true
-	return next, nil
+	return domain.CloneGameState(next), nil
 }
 
 func (s *Service) GetState(ctx context.Context) (domain.GameState, error) {
@@ -85,7 +81,7 @@ func (s *Service) GetMessages(ctx context.Context) ([]domain.Message, error) {
 
 func (s *Service) currentState(ctx context.Context) (domain.GameState, error) {
 	if s.hasState {
-		return s.state, nil
+		return domain.CloneGameState(s.state), nil
 	}
 	state, err := s.repository.Load(ctx)
 	if err != nil {
@@ -96,5 +92,5 @@ func (s *Service) currentState(ctx context.Context) (domain.GameState, error) {
 	}
 	s.state = state
 	s.hasState = true
-	return state, nil
+	return domain.CloneGameState(state), nil
 }
