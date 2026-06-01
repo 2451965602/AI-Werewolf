@@ -40,7 +40,7 @@ Examples:
 - The witch cannot rescue anyone except the last-night victim.
 - Day one cannot produce exile voting.
 
-The AI provider returns candidate actions; the engine validates candidates before state mutation. Invalid output uses a deterministic heuristic fallback.
+The AI provider returns candidate actions; the engine validates candidates before state mutation. Model invocation or parse failure uses bounded retry followed by deterministic heuristic fallback; a successful model response with an illegal target is rejected without mutating game state.
 
 ### Synchronous phase advancement
 
@@ -137,7 +137,8 @@ POST /api/game/next
 
 - Invalid state transition: return a domain/application error and do not save mutated state.
 - AI call failure: retry, then use legal heuristic fallback.
-- AI parse failure: treat as invalid AI decision and use fallback.
+- AI parse failure: retry, then use legal heuristic fallback.
+- Illegal target in a successful model response: reject that action without mutating game state.
 - Storage write failure: return infrastructure error and keep previous persisted state intact.
 - Storage decode failure: return infrastructure error and do not overwrite in-memory state with partial data.
 

@@ -93,6 +93,32 @@ func TestWerewolfContextIncludesWolfTeammates(t *testing.T) {
 	}
 }
 
+func TestDecisionContextScopesInspectionsAndNightDeath(t *testing.T) {
+	state := NewGame()
+	killed := 4
+	state.LastNightKilled = &killed
+	state.WitchHealUsed = true
+	state.Inspections = []InspectionResult{{SeerID: 8, TargetID: 1, Role: RoleWerewolf, Round: 1}}
+
+	villagerContext := NewDecisionContextForPlayer(state, state.Players[3])
+	if villagerContext.LastNightKilled != nil || len(villagerContext.Inspections) != 0 {
+		t.Fatal("villager must not see witch night death or seer inspections")
+	}
+
+	seerContext := NewDecisionContextForPlayer(state, state.Players[7])
+	if len(seerContext.Inspections) != 1 || seerContext.LastNightKilled != nil {
+		t.Fatal("seer should see own inspections but not witch night death")
+	}
+
+	witchContext := NewDecisionContextForPlayer(state, state.Players[8])
+	if witchContext.LastNightKilled == nil || !witchContext.WitchHealUsed {
+		t.Fatal("witch should see night death and potion state")
+	}
+	if len(witchContext.Inspections) != 0 {
+		t.Fatal("witch must not see seer inspections")
+	}
+}
+
 func TestSecondDayVoteExilesTarget(t *testing.T) {
 	state := NewGame()
 	state.Round = 2
@@ -112,6 +138,21 @@ func TestSecondDayVoteExilesTarget(t *testing.T) {
 	}
 	if !foundVote {
 		t.Fatal("expected vote message")
+	}
+}
+
+func TestInvalidVoteTargetDoesNotMutateState(t *testing.T) {
+	state := NewGame()
+	state.Round = 2
+	state.Phase = PhaseDay
+	next, err := AdvancePhase(state, staticDecisionProvider{voteTarget: 999})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, player := range next.Players {
+		if !player.Alive {
+			t.Fatalf("invalid vote target must not exile player %d", player.ID)
+		}
 	}
 }
 

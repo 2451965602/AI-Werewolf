@@ -17,6 +17,8 @@ type DecisionContext struct {
 	Messages        []Message
 	LastNightKilled *int
 	Inspections     []InspectionResult
+	WitchHealUsed   bool
+	WitchPoisonUsed bool
 }
 
 func NewGame() GameState {
@@ -138,7 +140,10 @@ func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 		return state, nil
 	}
 
-	targetID := firstAlivePlayerID(state)
+	targetID := 0
+	if provider == nil {
+		targetID = firstAlivePlayerID(state)
+	}
 	if provider != nil {
 		voters := alivePlayers(state)
 		if len(voters) > 0 {
@@ -146,9 +151,10 @@ func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 			if err != nil {
 				return state, fmt.Errorf("vote decision for player %d: %w", voters[0].ID, err)
 			}
-			if isAlivePlayer(state, candidate) {
-				targetID = candidate
+			if !isAlivePlayer(state, candidate) {
+				return state, nil
 			}
+			targetID = candidate
 		}
 	}
 	if targetID != 0 && isAlivePlayer(state, targetID) {
@@ -316,6 +322,18 @@ func newDecisionContext(state GameState, actor *Player) DecisionContext {
 		value := *state.LastNightKilled
 		killed = &value
 	}
+	if actor != nil && actor.Role != RoleWitch {
+		killed = nil
+	}
+	if actor != nil {
+		inspections = scopeInspectionsForActor(inspections, *actor)
+	}
+	witchHealUsed := false
+	witchPoisonUsed := false
+	if actor != nil && actor.Role == RoleWitch {
+		witchHealUsed = state.WitchHealUsed
+		witchPoisonUsed = state.WitchPoisonUsed
+	}
 	return DecisionContext{
 		Round:           state.Round,
 		Phase:           state.Phase,
@@ -323,6 +341,8 @@ func newDecisionContext(state GameState, actor *Player) DecisionContext {
 		Messages:        messages,
 		LastNightKilled: killed,
 		Inspections:     inspections,
+		WitchHealUsed:   witchHealUsed,
+		WitchPoisonUsed: witchPoisonUsed,
 	}
 }
 
@@ -336,6 +356,19 @@ func scopePlayerForActor(player Player, actor Player) Player {
 	player.Role = ""
 	player.Team = ""
 	return player
+}
+
+func scopeInspectionsForActor(inspections []InspectionResult, actor Player) []InspectionResult {
+	if actor.Role != RoleSeer {
+		return nil
+	}
+	visible := make([]InspectionResult, 0, len(inspections))
+	for _, inspection := range inspections {
+		if inspection.SeerID == actor.ID {
+			visible = append(visible, inspection)
+		}
+	}
+	return visible
 }
 
 func alivePlayers(state GameState) []Player {
