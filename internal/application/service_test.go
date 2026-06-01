@@ -53,6 +53,14 @@ func (a *fakeAI) WerewolfTarget(domain.Player, domain.DecisionContext) (int, err
 	return 4, a.err
 }
 
+func (a *fakeAI) SeerTarget(domain.Player, domain.DecisionContext) (int, error) {
+	return 1, a.err
+}
+
+func (a *fakeAI) WitchAction(domain.Player, domain.DecisionContext) (domain.WitchAction, error) {
+	return domain.WitchAction{Type: domain.WitchActionNone}, a.err
+}
+
 func TestStartGameSavesInitializedState(t *testing.T) {
 	repository := &fakeRepository{}
 	service := NewService(repository, &fakeAI{})

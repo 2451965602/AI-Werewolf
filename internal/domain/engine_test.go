@@ -9,6 +9,8 @@ type staticDecisionProvider struct {
 	speech         string
 	voteTarget     int
 	werewolfTarget int
+	seerTarget     int
+	witchAction    WitchAction
 	err            error
 }
 
@@ -22,6 +24,14 @@ func (p staticDecisionProvider) VoteTarget(Player, DecisionContext) (int, error)
 
 func (p staticDecisionProvider) WerewolfTarget(Player, DecisionContext) (int, error) {
 	return p.werewolfTarget, p.err
+}
+
+func (p staticDecisionProvider) SeerTarget(Player, DecisionContext) (int, error) {
+	return p.seerTarget, p.err
+}
+
+func (p staticDecisionProvider) WitchAction(Player, DecisionContext) (WitchAction, error) {
+	return p.witchAction, p.err
 }
 
 func TestStartGameEntersDayOne(t *testing.T) {
@@ -137,17 +147,70 @@ func TestWolvesEliminatedEndsImmediately(t *testing.T) {
 	}
 }
 
-func TestInvalidWerewolfTargetFallsBackToLegalTarget(t *testing.T) {
+func TestInvalidWerewolfTargetDoesNotMutateState(t *testing.T) {
 	state := NewGame()
 	state.Phase = PhaseNight
 	next, err := AdvancePhase(state, staticDecisionProvider{werewolfTarget: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if next.LastNightKilled == nil {
-		t.Fatal("expected fallback target to be killed")
+	if next.LastNightKilled != nil {
+		t.Fatal("invalid target must not kill fallback target")
 	}
-	if *next.LastNightKilled == 1 {
-		t.Fatal("werewolf must not kill wolf teammate")
+	for _, player := range next.Players {
+		if !player.Alive {
+			t.Fatalf("invalid AI target must not mutate player %d", player.ID)
+		}
+	}
+}
+
+func TestSeerInspectionRecordsRole(t *testing.T) {
+	state := NewGame()
+	state.Phase = PhaseNight
+	next, err := AdvancePhase(state, staticDecisionProvider{werewolfTarget: 4, seerTarget: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(next.Inspections) != 1 {
+		t.Fatalf("expected one inspection, got %d", len(next.Inspections))
+	}
+	if next.Inspections[0].Role != RoleWerewolf {
+		t.Fatalf("expected inspected role werewolf, got %s", next.Inspections[0].Role)
+	}
+}
+
+func TestWitchCanOnlyHealLastNightKilled(t *testing.T) {
+	state := NewGame()
+	state.Phase = PhaseNight
+	next, err := AdvancePhase(state, staticDecisionProvider{
+		werewolfTarget: 4,
+		witchAction:    WitchAction{Type: WitchActionHeal, TargetID: 5},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Players[3].Alive {
+		t.Fatal("actual last-night victim should remain dead when witch heals wrong target")
+	}
+	if next.WitchHealUsed {
+		t.Fatal("invalid heal target must not consume antidote")
+	}
+}
+
+func TestWitchHealRestoresLastNightKilled(t *testing.T) {
+	state := NewGame()
+	state.Phase = PhaseNight
+	next, err := AdvancePhase(state, staticDecisionProvider{
+		werewolfTarget: 4,
+		witchAction:    WitchAction{Type: WitchActionHeal, TargetID: 4},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !next.Players[3].Alive {
+		t.Fatal("witch should restore last-night killed target")
+	}
+	if !next.WitchHealUsed {
+		t.Fatal("valid heal should consume antidote")
 	}
 }

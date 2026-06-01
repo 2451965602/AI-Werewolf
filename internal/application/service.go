@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"ai-werewolf-go/internal/domain"
 )
@@ -17,6 +18,7 @@ type StateRepository interface {
 }
 
 type Service struct {
+	mu         sync.Mutex
 	repository StateRepository
 	ai         AIDecisionProvider
 	state      domain.GameState
@@ -30,6 +32,9 @@ func NewService(repository StateRepository, ai AIDecisionProvider) *Service {
 }
 
 func (s *Service) StartGame(ctx context.Context) (domain.GameState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	state := domain.NewGame()
 	if err := s.repository.Save(ctx, state); err != nil {
 		return domain.GameState{}, err
@@ -40,6 +45,9 @@ func (s *Service) StartGame(ctx context.Context) (domain.GameState, error) {
 }
 
 func (s *Service) NextPhase(ctx context.Context) (domain.GameState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	state, err := s.currentState(ctx)
 	if err != nil {
 		return domain.GameState{}, err
@@ -68,10 +76,16 @@ func (s *Service) NextPhase(ctx context.Context) (domain.GameState, error) {
 }
 
 func (s *Service) GetState(ctx context.Context) (domain.GameState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	return s.currentState(ctx)
 }
 
 func (s *Service) GetMessages(ctx context.Context) ([]domain.Message, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	state, err := s.currentState(ctx)
 	if err != nil {
 		return nil, err

@@ -6,6 +6,8 @@ type DecisionProvider interface {
 	Speak(player Player, context DecisionContext) (string, error)
 	VoteTarget(player Player, context DecisionContext) (int, error)
 	WerewolfTarget(player Player, context DecisionContext) (int, error)
+	SeerTarget(player Player, context DecisionContext) (int, error)
+	WitchAction(player Player, context DecisionContext) (WitchAction, error)
 }
 
 type DecisionContext struct {
@@ -14,6 +16,7 @@ type DecisionContext struct {
 	Players         []Player
 	Messages        []Message
 	LastNightKilled *int
+	Inspections     []InspectionResult
 }
 
 func NewGame() GameState {
@@ -148,7 +151,7 @@ func advanceDay(state GameState, provider DecisionProvider) (GameState, error) {
 			}
 		}
 	}
-	if targetID != 0 {
+	if targetID != 0 && isAlivePlayer(state, targetID) {
 		for i := range state.Players {
 			if state.Players[i].ID == targetID {
 				state.Players[i].Alive = false
@@ -186,8 +189,11 @@ func advanceNight(state GameState, provider DecisionProvider) (GameState, error)
 		}
 		targetID = candidate
 	}
-	if !isLegalWerewolfTarget(state, targetID) {
+	if provider == nil && !isLegalWerewolfTarget(state, targetID) {
 		targetID = firstLegalWerewolfTarget(state)
+	}
+	if provider != nil && !isLegalWerewolfTarget(state, targetID) {
+		return advanceNightSpecialRoles(state, provider)
 	}
 	if targetID != 0 {
 		for i := range state.Players {
@@ -199,10 +205,79 @@ func advanceNight(state GameState, provider DecisionProvider) (GameState, error)
 		}
 	}
 
+	return advanceNightSpecialRoles(state, provider)
+}
+
+func advanceNightSpecialRoles(state GameState, provider DecisionProvider) (GameState, error) {
+	if provider != nil {
+		var err error
+		state, err = performSeerAction(state, provider)
+		if err != nil {
+			return state, err
+		}
+		state, err = performWitchAction(state, provider)
+		if err != nil {
+			return state, err
+		}
+	}
 	ApplyGameEndIfNeeded(&state)
 	if !state.Ended {
 		state.Round++
 		state.Phase = PhaseDay
+	}
+	return state, nil
+}
+
+func performSeerAction(state GameState, provider DecisionProvider) (GameState, error) {
+	seer, ok := firstAliveByRole(state, RoleSeer)
+	if !ok {
+		return state, nil
+	}
+	targetID, err := provider.SeerTarget(seer, NewDecisionContextForPlayer(state, seer))
+	if err != nil {
+		return state, fmt.Errorf("seer target decision for player %d: %w", seer.ID, err)
+	}
+	target, ok := playerByID(state, targetID)
+	if !ok || !target.Alive || target.ID == seer.ID {
+		return state, nil
+	}
+	state.Inspections = append(state.Inspections, InspectionResult{SeerID: seer.ID, TargetID: target.ID, Role: target.Role, Round: state.Round})
+	return state, nil
+}
+
+func performWitchAction(state GameState, provider DecisionProvider) (GameState, error) {
+	witch, ok := firstAliveByRole(state, RoleWitch)
+	if !ok {
+		return state, nil
+	}
+	action, err := provider.WitchAction(witch, NewDecisionContextForPlayer(state, witch))
+	if err != nil {
+		return state, fmt.Errorf("witch action decision for player %d: %w", witch.ID, err)
+	}
+	switch action.Type {
+	case WitchActionHeal:
+		if state.WitchHealUsed || state.LastNightKilled == nil || action.TargetID != *state.LastNightKilled {
+			return state, nil
+		}
+		for i := range state.Players {
+			if state.Players[i].ID == action.TargetID {
+				state.Players[i].Alive = true
+				state.WitchHealUsed = true
+				state.LastNightKilled = nil
+				return state, nil
+			}
+		}
+	case WitchActionPoison:
+		if state.WitchPoisonUsed || action.TargetID == witch.ID {
+			return state, nil
+		}
+		for i := range state.Players {
+			if state.Players[i].ID == action.TargetID && state.Players[i].Alive {
+				state.Players[i].Alive = false
+				state.WitchPoisonUsed = true
+				return state, nil
+			}
+		}
 	}
 	return state, nil
 }
@@ -215,6 +290,7 @@ func CloneGameState(state GameState) GameState {
 	clone := state
 	clone.Players = append([]Player(nil), state.Players...)
 	clone.Messages = append([]Message(nil), state.Messages...)
+	clone.Inspections = append([]InspectionResult(nil), state.Inspections...)
 	if state.LastNightKilled != nil {
 		value := *state.LastNightKilled
 		clone.LastNightKilled = &value
@@ -234,6 +310,7 @@ func newDecisionContext(state GameState, actor *Player) DecisionContext {
 		}
 	}
 	messages := append([]Message(nil), state.Messages...)
+	inspections := append([]InspectionResult(nil), state.Inspections...)
 	var killed *int
 	if state.LastNightKilled != nil {
 		value := *state.LastNightKilled
@@ -245,6 +322,7 @@ func newDecisionContext(state GameState, actor *Player) DecisionContext {
 		Players:         players,
 		Messages:        messages,
 		LastNightKilled: killed,
+		Inspections:     inspections,
 	}
 }
 
@@ -286,6 +364,24 @@ func isAlivePlayer(state GameState, id int) bool {
 		}
 	}
 	return false
+}
+
+func playerByID(state GameState, id int) (Player, bool) {
+	for _, player := range state.Players {
+		if player.ID == id {
+			return player, true
+		}
+	}
+	return Player{}, false
+}
+
+func firstAliveByRole(state GameState, role Role) (Player, bool) {
+	for _, player := range state.Players {
+		if player.Alive && player.Role == role {
+			return player, true
+		}
+	}
+	return Player{}, false
 }
 
 func alivePlayersByTeam(state GameState, team Team) []Player {

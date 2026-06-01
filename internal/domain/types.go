@@ -64,12 +64,35 @@ type Vote struct {
 	Round    int `json:"round"`
 }
 
+type InspectionResult struct {
+	SeerID   int  `json:"seerId"`
+	TargetID int  `json:"targetId"`
+	Role     Role `json:"role"`
+	Round    int  `json:"round"`
+}
+
+type WitchActionType string
+
+const (
+	WitchActionNone   WitchActionType = "none"
+	WitchActionHeal   WitchActionType = "heal"
+	WitchActionPoison WitchActionType = "poison"
+)
+
+type WitchAction struct {
+	Type     WitchActionType
+	TargetID int
+}
+
 type GameState struct {
-	Round           int       `json:"round"`
-	Phase           Phase     `json:"phase"`
-	Ended           bool      `json:"ended"`
-	Winner          Winner    `json:"winner,omitempty"`
-	Players         []Player  `json:"players"`
-	Messages        []Message `json:"messages"`
-	LastNightKilled *int      `json:"lastNightKilled,omitempty"`
+	Round           int                `json:"round"`
+	Phase           Phase              `json:"phase"`
+	Ended           bool               `json:"ended"`
+	Winner          Winner             `json:"winner,omitempty"`
+	Players         []Player           `json:"players"`
+	Messages        []Message          `json:"messages"`
+	LastNightKilled *int               `json:"lastNightKilled,omitempty"`
+	Inspections     []InspectionResult `json:"inspections,omitempty"`
+	WitchHealUsed   bool               `json:"witchHealUsed"`
+	WitchPoisonUsed bool               `json:"witchPoisonUsed"`
 }
