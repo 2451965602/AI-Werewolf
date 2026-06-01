@@ -1,0 +1,73 @@
+package domain
+
+import "testing"
+
+type staticDecisionProvider struct {
+	speech         string
+	werewolfTarget int
+}
+
+func (p staticDecisionProvider) Speak(Player, GameState) (string, error) {
+	return p.speech, nil
+}
+
+func (p staticDecisionProvider) WerewolfTarget(Player, GameState) (int, error) {
+	return p.werewolfTarget, nil
+}
+
+func TestStartGameEntersDayOne(t *testing.T) {
+	state := NewGame()
+	if state.Round != 1 || state.Phase != PhaseDay {
+		t.Fatalf("expected day 1, got round=%d phase=%s", state.Round, state.Phase)
+	}
+	if len(state.Players) != 10 {
+		t.Fatalf("expected 10 players, got %d", len(state.Players))
+	}
+}
+
+func TestDayOneDoesNotVote(t *testing.T) {
+	state := NewGame()
+	next, err := AdvancePhase(state, staticDecisionProvider{speech: "自我介绍"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Ended {
+		t.Fatal("game should not end on day one")
+	}
+	if next.Phase != PhaseNight {
+		t.Fatalf("expected next phase night, got %s", next.Phase)
+	}
+	for _, msg := range next.Messages {
+		if msg.Type == MessageTypeVote {
+			t.Fatal("day one must not vote")
+		}
+	}
+}
+
+func TestWolvesEliminatedEndsImmediately(t *testing.T) {
+	state := NewGame()
+	for i := range state.Players {
+		if state.Players[i].Role == RoleWerewolf {
+			state.Players[i].Alive = false
+		}
+	}
+	ended := CheckGameEnd(&state)
+	if !ended || !state.Ended || state.Winner != WinnerVillage {
+		t.Fatalf("expected village win, got ended=%v winner=%q", state.Ended, state.Winner)
+	}
+}
+
+func TestInvalidWerewolfTargetFallsBackToLegalTarget(t *testing.T) {
+	state := NewGame()
+	state.Phase = PhaseNight
+	next, err := AdvancePhase(state, staticDecisionProvider{werewolfTarget: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.LastNightKilled == nil {
+		t.Fatal("expected fallback target to be killed")
+	}
+	if *next.LastNightKilled == 1 {
+		t.Fatal("werewolf must not kill wolf teammate")
+	}
+}
