@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -11,11 +12,12 @@ import (
 )
 
 type JSONStore struct {
-	path string
+	path   string
+	rename func(string, string) error
 }
 
 func NewJSONStore(path string) *JSONStore {
-	return &JSONStore{path: path}
+	return &JSONStore{path: path, rename: os.Rename}
 }
 
 func (s *JSONStore) Save(_ context.Context, state domain.GameState) error {
@@ -44,7 +46,7 @@ func (s *JSONStore) Save(_ context.Context, state domain.GameState) error {
 	if err := temp.Close(); err != nil {
 		return fmt.Errorf("close temp state file: %w", err)
 	}
-	if err := os.Rename(tempPath, s.path); err != nil {
+	if err := s.rename(tempPath, s.path); err != nil {
 		return fmt.Errorf("replace state file: %w", err)
 	}
 	removeTemp = false
@@ -59,8 +61,12 @@ func (s *JSONStore) Load(_ context.Context) (domain.GameState, error) {
 	defer file.Close()
 
 	var state domain.GameState
-	if err := json.NewDecoder(file).Decode(&state); err != nil {
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&state); err != nil {
 		return domain.GameState{}, fmt.Errorf("decode state file: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return domain.GameState{}, fmt.Errorf("decode state file: trailing JSON content")
 	}
 	return domain.CloneGameState(state), nil
 }

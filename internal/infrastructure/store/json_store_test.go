@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,21 +38,32 @@ func TestJSONStoreInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestJSONStoreRejectsTrailingGarbage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "world_state.json")
+	content := []byte(`{"round":1,"phase":"day","players":[]} trailing`)
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewJSONStore(path).Load(context.Background())
+	if err == nil {
+		t.Fatal("expected trailing content error")
+	}
+}
+
 func TestJSONStoreFailedWritePreservesPreviousState(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "world_state.json")
+	path := filepath.Join(t.TempDir(), "world_state.json")
 	store := NewJSONStore(path)
 	initial := domain.NewGame()
 	if err := store.Save(context.Background(), initial); err != nil {
 		t.Fatal(err)
 	}
 
-	blockedPath := filepath.Join(dir, "blocked", "world_state.json")
-	if err := os.WriteFile(filepath.Join(dir, "blocked"), []byte("file blocks directory"), 0o644); err != nil {
-		t.Fatal(err)
+	updated := domain.NewGame()
+	updated.Round = 99
+	store.rename = func(string, string) error {
+		return errors.New("simulated rename failure")
 	}
-	failedStore := NewJSONStore(blockedPath)
-	if err := failedStore.Save(context.Background(), initial); err == nil {
+	if err := store.Save(context.Background(), updated); err == nil {
 		t.Fatal("expected write failure")
 	}
 
