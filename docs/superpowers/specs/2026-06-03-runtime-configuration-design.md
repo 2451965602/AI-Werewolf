@@ -2,6 +2,8 @@
 comet_change: configure-env-file-priority
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-03-configure-env-file-priority
+status: final
 ---
 
 ## 目标

@@ -2,6 +2,7 @@
 change: configure-env-file-priority
 design-doc: docs/superpowers/specs/2026-06-03-runtime-configuration-design.md
 base-ref: be6594ffbf971f31c91d01ef8824988677f7f55b
+archived-with: 2026-06-03-configure-env-file-priority
 ---
 
 # Runtime Configuration Implementation Plan
@@ -14,6 +15,7 @@ base-ref: be6594ffbf971f31c91d01ef8824988677f7f55b
 
 **Tech Stack:** Go 1.22, Viper, Hertz, existing JSON store, `go test ./... -timeout 60s`.
 
+archived-with: 2026-06-03-configure-env-file-priority
 ---
 
 ## File Structure
