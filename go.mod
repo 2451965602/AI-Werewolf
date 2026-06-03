@@ -4,6 +4,7 @@ go 1.22
 
 require (
 	github.com/cloudwego/eino v0.9.2
+	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
 	github.com/cloudwego/hertz v0.9.6
 	github.com/spf13/viper v1.20.1
 )
@@ -15,7 +16,6 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cloudwego/eino-ext/components/model/openai v0.1.13 // indirect
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.17 // indirect
 	github.com/cloudwego/netpoll v0.6.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect

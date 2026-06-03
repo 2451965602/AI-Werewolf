@@ -196,6 +196,7 @@ ai:
 	t.Setenv("WEREWOLF_AI_PROVIDER", "env-provider")
 	t.Setenv("WEREWOLF_AI_BASE_URL", "https://env.example.com")
 	t.Setenv("WEREWOLF_AI_MODEL", "env-model")
+	t.Setenv("WEREWOLF_AI_CONCURRENCY", "2")
 	t.Setenv("WEREWOLF_AI_API_KEY_ENV", "ALT_API_KEY")
 	t.Setenv("ALT_API_KEY", "env-named-secret")
 
@@ -218,6 +219,9 @@ ai:
 	}
 	if cfg.AI.Model != "env-model" {
 		t.Errorf("AI.Model = %q, want env-model", cfg.AI.Model)
+	}
+	if cfg.AI.Concurrency != 2 {
+		t.Errorf("AI.Concurrency = %d, want 2", cfg.AI.Concurrency)
 	}
 	if cfg.AI.APIKeyEnv != "ALT_API_KEY" {
 		t.Errorf("AI.APIKeyEnv = %q, want ALT_API_KEY", cfg.AI.APIKeyEnv)

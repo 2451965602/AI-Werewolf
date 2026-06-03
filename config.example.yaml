@@ -8,6 +8,7 @@ ai:
   provider: "eino"
   base_url: "https://api.example.com/v1"
   model: "deepseek-chat"
+  concurrency: 1
   # 生产环境更推荐通过 WEREWOLF_AI_API_KEY 或 api_key_env 指向的环境变量提供密钥
   api_key: ""
   api_key_env: "OPENAI_API_KEY"
