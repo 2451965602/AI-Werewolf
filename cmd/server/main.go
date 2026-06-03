@@ -17,7 +17,11 @@ func main() {
 	}
 
 	repository := store.NewJSONStore(cfg.Storage.StatePath)
-	aiProvider := ai.FallbackProvider{}
+	aiProvider, err := ai.BuildProvider(cfg.AI)
+	if err != nil {
+		log.Fatalf("build ai provider: %v", err)
+	}
+	aiProvider = ai.WrapWithConcurrencyLimit(aiProvider, cfg.AI.Concurrency)
 	service := application.NewService(repository, aiProvider)
 	router := transporthttp.NewRouter(service, cfg.Server.Addr)
 	router.Spin()

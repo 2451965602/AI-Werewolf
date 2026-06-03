@@ -28,11 +28,12 @@ type StorageConfig struct {
 
 // AIConfig AI 服务配置
 type AIConfig struct {
-	Provider  string `mapstructure:"provider"`
-	BaseURL   string `mapstructure:"base_url"`
-	Model     string `mapstructure:"model"`
-	APIKey    string `mapstructure:"api_key"`
-	APIKeyEnv string `mapstructure:"api_key_env"`
+	Provider    string `mapstructure:"provider"`
+	BaseURL     string `mapstructure:"base_url"`
+	Model       string `mapstructure:"model"`
+	Concurrency int    `mapstructure:"concurrency"`
+	APIKey      string `mapstructure:"api_key"`
+	APIKeyEnv   string `mapstructure:"api_key_env"`
 }
 
 // Load 从默认路径加载配置。
@@ -96,10 +97,11 @@ func loadWithPath(path string, required bool) (Config, error) {
 			StatePath: v.GetString("storage.state_path"),
 		},
 		AI: AIConfig{
-			Provider:  v.GetString("ai.provider"),
-			BaseURL:   v.GetString("ai.base_url"),
-			Model:     v.GetString("ai.model"),
-			APIKeyEnv: v.GetString("ai.api_key_env"),
+			Provider:    v.GetString("ai.provider"),
+			BaseURL:     v.GetString("ai.base_url"),
+			Model:       v.GetString("ai.model"),
+			Concurrency: v.GetInt("ai.concurrency"),
+			APIKeyEnv:   v.GetString("ai.api_key_env"),
 		},
 	}
 
@@ -112,6 +114,9 @@ func loadWithPath(path string, required bool) (Config, error) {
 	}
 	if cfg.Storage.StatePath == "" {
 		return Config{}, fmt.Errorf("storage.state_path is required")
+	}
+	if cfg.AI.Concurrency <= 0 {
+		return Config{}, fmt.Errorf("ai.concurrency must be greater than 0")
 	}
 
 	return cfg, nil
@@ -134,6 +139,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("ai.provider", "fallback")
 	v.SetDefault("ai.base_url", "")
 	v.SetDefault("ai.model", "")
+	v.SetDefault("ai.concurrency", 1)
 	v.SetDefault("ai.api_key", "")
 	v.SetDefault("ai.api_key_env", "OPENAI_API_KEY")
 }
