@@ -6,7 +6,31 @@ import (
 	"testing"
 )
 
+func clearRelevantEnv(t *testing.T) {
+	t.Helper()
+
+	for _, key := range []string{
+		"CONFIG_PATH",
+		"OPENAI_API_KEY",
+		"ALT_API_KEY",
+		"MY_API_KEY",
+		"MY_CUSTOM_KEY",
+		"MISSING_KEY_VAR",
+		"WEREWOLF_SERVER_ADDR",
+		"WEREWOLF_STORAGE_STATE_PATH",
+		"WEREWOLF_AI_PROVIDER",
+		"WEREWOLF_AI_BASE_URL",
+		"WEREWOLF_AI_MODEL",
+		"WEREWOLF_AI_API_KEY",
+		"WEREWOLF_AI_API_KEY_ENV",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
 func TestLoadDefaultsWhenDefaultConfigMissing(t *testing.T) {
+	clearRelevantEnv(t)
+
 	// 使用临时目录确保无 config.yaml
 	dir := t.TempDir()
 	t.Setenv("CONFIG_PATH", "")
@@ -47,6 +71,8 @@ func TestLoadDefaultsWhenDefaultConfigMissing(t *testing.T) {
 }
 
 func TestLoadConfigFileOverridesDefaults(t *testing.T) {
+	clearRelevantEnv(t)
+
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
 	content := `
@@ -94,6 +120,8 @@ ai:
 }
 
 func TestEnvironmentOverridesConfigFile(t *testing.T) {
+	clearRelevantEnv(t)
+
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
 	content := `
@@ -101,6 +129,11 @@ server:
   addr: ":9090"
 storage:
   state_path: "data/from-file.json"
+ai:
+  provider: "file-provider"
+  base_url: "https://file.example.com"
+  model: "file-model"
+  api_key_env: "MY_API_KEY"
 `
 	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -108,6 +141,11 @@ storage:
 
 	t.Setenv("WEREWOLF_SERVER_ADDR", ":7070")
 	t.Setenv("WEREWOLF_STORAGE_STATE_PATH", "data/from-env.json")
+	t.Setenv("WEREWOLF_AI_PROVIDER", "env-provider")
+	t.Setenv("WEREWOLF_AI_BASE_URL", "https://env.example.com")
+	t.Setenv("WEREWOLF_AI_MODEL", "env-model")
+	t.Setenv("WEREWOLF_AI_API_KEY_ENV", "ALT_API_KEY")
+	t.Setenv("ALT_API_KEY", "env-named-secret")
 
 	cfg, err := LoadFromPath(configPath)
 	if err != nil {
@@ -120,24 +158,65 @@ storage:
 	if cfg.Storage.StatePath != "data/from-env.json" {
 		t.Errorf("Storage.StatePath = %q, want data/from-env.json", cfg.Storage.StatePath)
 	}
+	if cfg.AI.Provider != "env-provider" {
+		t.Errorf("AI.Provider = %q, want env-provider", cfg.AI.Provider)
+	}
+	if cfg.AI.BaseURL != "https://env.example.com" {
+		t.Errorf("AI.BaseURL = %q, want https://env.example.com", cfg.AI.BaseURL)
+	}
+	if cfg.AI.Model != "env-model" {
+		t.Errorf("AI.Model = %q, want env-model", cfg.AI.Model)
+	}
+	if cfg.AI.APIKeyEnv != "ALT_API_KEY" {
+		t.Errorf("AI.APIKeyEnv = %q, want ALT_API_KEY", cfg.AI.APIKeyEnv)
+	}
+	if cfg.AI.APIKey != "env-named-secret" {
+		t.Errorf("AI.APIKey = %q, want env-named-secret", cfg.AI.APIKey)
+	}
 }
 
 func TestExplicitConfigPathMissingReturnsError(t *testing.T) {
+	clearRelevantEnv(t)
+	missingPath := filepath.Join(t.TempDir(), "missing-config.yaml")
+
 	// LoadFromPath 指向不存在的文件
-	_, err := LoadFromPath("/nonexistent/path/config.yaml")
+	_, err := LoadFromPath(missingPath)
 	if err == nil {
 		t.Error("LoadFromPath() with missing file should return error, got nil")
 	}
 
 	// Load() 带 CONFIG_PATH 指向不存在的文件
-	t.Setenv("CONFIG_PATH", "/nonexistent/path/config.yaml")
+	t.Setenv("CONFIG_PATH", missingPath)
 	_, err = Load()
 	if err == nil {
 		t.Error("Load() with missing CONFIG_PATH should return error, got nil")
 	}
 }
 
+func TestDefaultConfigDirectoryReturnsError(t *testing.T) {
+	clearRelevantEnv(t)
+
+	dir := t.TempDir()
+	configDir := filepath.Join(dir, "config.yaml")
+	if err := os.Mkdir(configDir, 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+
+	originalDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() with config.yaml directory should return error, got nil")
+	}
+}
+
 func TestInvalidYAMLReturnsError(t *testing.T) {
+	clearRelevantEnv(t)
+
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
 	content := `
@@ -160,6 +239,8 @@ func TestAIAPIKeyResolutionOrder(t *testing.T) {
 	configPath := filepath.Join(dir, "config.yaml")
 
 	t.Run("WEREWOLF_AI_API_KEY overrides config file ai.api_key", func(t *testing.T) {
+		clearRelevantEnv(t)
+
 		content := `
 ai:
   api_key: file-secret
@@ -180,6 +261,8 @@ ai:
 	})
 
 	t.Run("config file ai.api_key used when no WEREWOLF_AI_API_KEY", func(t *testing.T) {
+		clearRelevantEnv(t)
+
 		content := `
 ai:
   api_key: file-secret
@@ -199,6 +282,8 @@ ai:
 	})
 
 	t.Run("ai.api_key_env environment variable as fallback", func(t *testing.T) {
+		clearRelevantEnv(t)
+
 		content := `
 ai:
   api_key_env: MY_CUSTOM_KEY
@@ -218,6 +303,8 @@ ai:
 	})
 
 	t.Run("empty API key when nothing configured", func(t *testing.T) {
+		clearRelevantEnv(t)
+
 		content := `
 ai:
   api_key_env: MISSING_KEY_VAR

@@ -88,9 +88,19 @@ func loadWithPath(path string, required bool) (Config, error) {
 		}
 	}
 
-	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return Config{}, fmt.Errorf("unmarshal config: %w", err)
+	cfg := Config{
+		Server: ServerConfig{
+			Addr: v.GetString("server.addr"),
+		},
+		Storage: StorageConfig{
+			StatePath: v.GetString("storage.state_path"),
+		},
+		AI: AIConfig{
+			Provider:  v.GetString("ai.provider"),
+			BaseURL:   v.GetString("ai.base_url"),
+			Model:     v.GetString("ai.model"),
+			APIKeyEnv: v.GetString("ai.api_key_env"),
+		},
 	}
 
 	// AI key 解析：WEREWOLF_AI_API_KEY > ai.api_key > ai.api_key_env 指向的环境变量 > 空值
@@ -108,14 +118,13 @@ func loadWithPath(path string, required bool) (Config, error) {
 }
 
 // isFileNotFoundError 判断错误是否为文件不存在
-// 兼容 viper.ConfigFileNotFoundError 和 os.PathError（Windows 上 viper 返回的可能是后者）
+// 仅在明确 not exist 时放行，避免把权限或目录错误误判为可忽略缺失。
 func isFileNotFoundError(err error) bool {
 	var cfgNotFound viper.ConfigFileNotFoundError
 	if errors.As(err, &cfgNotFound) {
 		return true
 	}
-	var pathErr *os.PathError
-	return errors.As(err, &pathErr)
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // setDefaults 设置所有内置默认值
@@ -123,6 +132,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.addr", ":8080")
 	v.SetDefault("storage.state_path", "data/world_state.json")
 	v.SetDefault("ai.provider", "fallback")
+	v.SetDefault("ai.base_url", "")
+	v.SetDefault("ai.model", "")
+	v.SetDefault("ai.api_key", "")
 	v.SetDefault("ai.api_key_env", "OPENAI_API_KEY")
 }
 
