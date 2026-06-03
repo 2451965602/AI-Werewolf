@@ -1,0 +1,16 @@
+workflow: full
+phase: build
+build_mode: executing-plans
+isolation: branch
+verify_mode: light
+base_ref: a57fd1af411a95bf8e3b84a9b30b2ca387c67ebb
+design_doc: docs/superpowers/specs/2026-06-03-ai-provider-failover-design.md
+plan: docs/superpowers/plans/2026-06-03-ai-provider-failover.md
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-03
+verified_at: null
+archived: false
+handoff_context: openspec/changes/fix-ai-provider-next-hang/.comet/handoff/design-context.json
+handoff_hash: 904d7b8c05d665e215f8175474bc5098d8e8d095b5d7dae921fd8c4db81161af
