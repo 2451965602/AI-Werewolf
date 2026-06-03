@@ -21,6 +21,7 @@ func clearRelevantEnv(t *testing.T) {
 		"WEREWOLF_AI_PROVIDER",
 		"WEREWOLF_AI_BASE_URL",
 		"WEREWOLF_AI_MODEL",
+		"WEREWOLF_AI_CONCURRENCY",
 		"WEREWOLF_AI_API_KEY",
 		"WEREWOLF_AI_API_KEY_ENV",
 	} {
@@ -68,6 +69,9 @@ func TestLoadDefaultsWhenDefaultConfigMissing(t *testing.T) {
 	if cfg.AI.Model != "" {
 		t.Errorf("AI.Model = %q, want empty", cfg.AI.Model)
 	}
+	if cfg.AI.Concurrency != 1 {
+		t.Errorf("AI.Concurrency = %d, want 1", cfg.AI.Concurrency)
+	}
 }
 
 func TestLoadConfigFileOverridesDefaults(t *testing.T) {
@@ -86,6 +90,7 @@ ai:
   model: "gpt-4"
   api_key: "file-secret"
   api_key_env: "MY_API_KEY"
+  concurrency: 3
 `
 	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -116,6 +121,53 @@ ai:
 	}
 	if cfg.AI.APIKeyEnv != "MY_API_KEY" {
 		t.Errorf("AI.APIKeyEnv = %q, want MY_API_KEY", cfg.AI.APIKeyEnv)
+	}
+	if cfg.AI.Concurrency != 3 {
+		t.Errorf("AI.Concurrency = %d, want 3", cfg.AI.Concurrency)
+	}
+}
+
+func TestLoadConfigFileReadsAIConcurrency(t *testing.T) {
+	clearRelevantEnv(t)
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := `
+ai:
+  provider: "fallback"
+  concurrency: 1
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadFromPath(configPath)
+	if err != nil {
+		t.Fatalf("LoadFromPath() returned error: %v", err)
+	}
+
+	if cfg.AI.Concurrency != 1 {
+		t.Errorf("AI.Concurrency = %d, want 1", cfg.AI.Concurrency)
+	}
+}
+
+func TestLoadRejectsNonPositiveAIConcurrency(t *testing.T) {
+	clearRelevantEnv(t)
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := `
+ai:
+  provider: "fallback"
+  concurrency: 0
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	_, err := LoadFromPath(configPath)
+	if err == nil {
+		t.Fatal("LoadFromPath() with ai.concurrency=0 should return error, got nil")
 	}
 }
 
