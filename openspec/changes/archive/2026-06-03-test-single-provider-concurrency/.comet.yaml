@@ -1,0 +1,18 @@
+workflow: full
+phase: archive
+build_mode: subagent-driven-development
+isolation: worktree
+verify_mode: full
+base_ref: 2f7686c8c071cd93e0b385b6cff24f741833008e
+design_doc: docs/superpowers/specs/2026-06-03-ai-provider-concurrency-design.md
+plan: docs/superpowers/plans/2026-06-03-ai-provider-concurrency-plan.md
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-06-03-test-single-provider-concurrency-verify.md
+branch_status: handled
+created_at: 2026-06-03
+verified_at: 2026-06-03
+archived: true
+build_command: cmd.exe /c go test ./... -timeout 60s
+verify_command: cmd.exe /c go test ./... -timeout 60s
+handoff_context: openspec/changes/test-single-provider-concurrency/.comet/handoff/design-context.json
+handoff_hash: 1a6e8b096161c27e0d76b1272ddcacf81853f98b8ca4269198b15546e04c87e7

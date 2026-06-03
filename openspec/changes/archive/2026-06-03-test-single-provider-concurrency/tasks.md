@@ -1,0 +1,4 @@
+- [x] 1. 扩展运行时配置，新增 `ai.concurrency` 读取与校验，并补充对应测试。
+- [x] 2. 重构 AI provider 构造路径，按 `ai.provider` 选择实际 provider，并对非法 provider 显式失败。
+- [x] 3. 新增通用 provider 限流装饰器，实现 `ai.concurrency = 1` 时的全局串行排队。
+- [x] 4. 为 provider 选择与并发串行化补充自动化测试，并运行 `go test ./... -timeout 60s`。
