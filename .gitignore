@@ -3,3 +3,4 @@
 skills-lock.json
 data/
 *.tmp
+/config.yaml
