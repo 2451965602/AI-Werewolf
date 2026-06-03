@@ -25,7 +25,7 @@ type Service struct {
 	hasState   bool
 }
 
-const maxAIAttempts = 2
+const maxAIAttempts = 1
 
 func NewService(repository StateRepository, ai AIDecisionProvider) *Service {
 	return &Service{repository: repository, ai: ai}

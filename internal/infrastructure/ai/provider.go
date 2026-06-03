@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 
 	"ai-werewolf-go/internal/domain"
 
@@ -16,11 +18,12 @@ import (
 var firstNumber = regexp.MustCompile(`\d+`)
 
 type EinoProvider struct {
-	model model.BaseChatModel
+	model   model.BaseChatModel
+	timeout time.Duration
 }
 
-func NewEinoProvider(model model.BaseChatModel) *EinoProvider {
-	return &EinoProvider{model: model}
+func NewEinoProvider(model model.BaseChatModel, timeout time.Duration) *EinoProvider {
+	return &EinoProvider{model: model, timeout: timeout}
 }
 
 func (p *EinoProvider) Speak(player domain.Player, view domain.DecisionContext) (string, error) {
@@ -85,7 +88,21 @@ func (p *EinoProvider) generate(instruction string, view domain.DecisionContext)
 		schema.SystemMessage("你是狼人杀 AI 玩家。只能基于可见信息回答，不得编造隐藏身份。"),
 		schema.UserMessage(fmt.Sprintf("可见上下文JSON：%s\n%s", string(visibleContext), instruction)),
 	}
-	return p.model.Generate(context.Background(), messages)
+	ctx := context.Background()
+	if p.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, p.timeout)
+		defer cancel()
+	}
+
+	message, err := p.model.Generate(ctx, messages)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(message.Content) == "" {
+		return nil, fmt.Errorf("model returned empty content")
+	}
+	return message, nil
 }
 
 func parseTargetID(content string) (int, error) {

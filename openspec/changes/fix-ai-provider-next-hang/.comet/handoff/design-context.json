@@ -1,0 +1,15 @@
+{
+  "change": "fix-ai-provider-next-hang",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "904d7b8c05d665e215f8175474bc5098d8e8d095b5d7dae921fd8c4db81161af",
+  "files": [
+    { "path": "openspec/changes/fix-ai-provider-next-hang/proposal.md", "sha256": "d2cf30d552bf7f945a3ca60c570b9358a3910e75a21010347effc85a33af3325" },
+    { "path": "openspec/changes/fix-ai-provider-next-hang/design.md", "sha256": "720b8dce52e9a566627f093adeea0b67fb46eac42b4be656a6c26eb2f29e7a11" },
+    { "path": "openspec/changes/fix-ai-provider-next-hang/tasks.md", "sha256": "e738faf000f1c547f91a4aa3e4446868b4ddfd2c25025d3983ce9d2a495561b9" },
+    { "path": "openspec/changes/fix-ai-provider-next-hang/specs/runtime-configuration/spec.md", "sha256": "2cb7534b36b94c78c2424cace777bf5386c5b2045f868704d4fe90cfd3382b65" },
+    { "path": "openspec/changes/fix-ai-provider-next-hang/specs/werewolf-ai-decision/spec.md", "sha256": "f6e84c2d9fe478bf51ec72d37cc2f09045fb068a1ee3f27f2cf9b0b15335276a" }
+  ]
+}

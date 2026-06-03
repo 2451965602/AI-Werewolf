@@ -24,8 +24,55 @@ func clearRelevantEnv(t *testing.T) {
 		"WEREWOLF_AI_CONCURRENCY",
 		"WEREWOLF_AI_API_KEY",
 		"WEREWOLF_AI_API_KEY_ENV",
+		"WEREWOLF_AI_TIMEOUT_MS",
+		"WEREWOLF_AI_FALLBACK_PROVIDER",
+		"WEREWOLF_AI_FALLBACK_BASE_URL",
+		"WEREWOLF_AI_FALLBACK_MODEL",
+		"WEREWOLF_AI_FALLBACK_API_KEY",
+		"WEREWOLF_AI_FALLBACK_API_KEY_ENV",
+		"WEREWOLF_AI_FALLBACK_TIMEOUT_MS",
 	} {
 		t.Setenv(key, "")
+	}
+}
+
+func TestLoadReadsAIFallbackConfig(t *testing.T) {
+	clearRelevantEnv(t)
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := `
+ai:
+  provider: "eino"
+  base_url: "http://primary/v1"
+  model: "primary-model"
+  api_key: "primary-key"
+  concurrency: 1
+  timeout_ms: 5000
+  fallback:
+    provider: "fallback"
+    timeout_ms: 1000
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadFromPath(configPath)
+	if err != nil {
+		t.Fatalf("LoadFromPath() returned error: %v", err)
+	}
+
+	if cfg.AI.TimeoutMS != 5000 {
+		t.Fatalf("AI.TimeoutMS = %d, want 5000", cfg.AI.TimeoutMS)
+	}
+	if cfg.AI.Fallback == nil {
+		t.Fatal("AI.Fallback = nil, want fallback config")
+	}
+	if cfg.AI.Fallback.Provider != "fallback" {
+		t.Fatalf("AI.Fallback.Provider = %q, want fallback", cfg.AI.Fallback.Provider)
+	}
+	if cfg.AI.Fallback.TimeoutMS != 1000 {
+		t.Fatalf("AI.Fallback.TimeoutMS = %d, want 1000", cfg.AI.Fallback.TimeoutMS)
 	}
 }
 

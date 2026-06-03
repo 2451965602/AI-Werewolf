@@ -155,19 +155,19 @@ func TestGetStateReturnsCopy(t *testing.T) {
 	}
 }
 
-func TestAIFailureRetriesBeforeFallback(t *testing.T) {
+func TestAIFailureFallsBackWithoutAmplifyingWholePhase(t *testing.T) {
 	repository := &fakeRepository{state: domain.NewGame()}
-	ai := &fakeAI{err: errors.New("temporary model error"), failures: 1}
+	ai := &fakeAI{err: errors.New("temporary model error"), failures: 99}
 	service := NewService(repository, ai)
 
 	state, err := service.NextPhase(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ai.speakCall < 2 {
-		t.Fatalf("expected bounded retry, got %d calls", ai.speakCall)
+	if ai.speakCall != 1 {
+		t.Fatalf("expected service to stop after the first failed AI attempt, got %d calls", ai.speakCall)
 	}
 	if state.Phase != domain.PhaseNight {
-		t.Fatalf("expected retry to advance phase, got %s", state.Phase)
+		t.Fatalf("expected fallback to advance phase, got %s", state.Phase)
 	}
 }

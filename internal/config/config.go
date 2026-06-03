@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -34,6 +35,17 @@ type AIConfig struct {
 	Concurrency int    `mapstructure:"concurrency"`
 	APIKey      string `mapstructure:"api_key"`
 	APIKeyEnv   string `mapstructure:"api_key_env"`
+	TimeoutMS   int    `mapstructure:"timeout_ms"`
+	Fallback    *FallbackAIConfig
+}
+
+type FallbackAIConfig struct {
+	Provider  string `mapstructure:"provider"`
+	BaseURL   string `mapstructure:"base_url"`
+	Model     string `mapstructure:"model"`
+	APIKey    string `mapstructure:"api_key"`
+	APIKeyEnv string `mapstructure:"api_key_env"`
+	TimeoutMS int    `mapstructure:"timeout_ms"`
 }
 
 // Load 从默认路径加载配置。
@@ -96,13 +108,7 @@ func loadWithPath(path string, required bool) (Config, error) {
 		Storage: StorageConfig{
 			StatePath: v.GetString("storage.state_path"),
 		},
-		AI: AIConfig{
-			Provider:    v.GetString("ai.provider"),
-			BaseURL:     v.GetString("ai.base_url"),
-			Model:       v.GetString("ai.model"),
-			Concurrency: v.GetInt("ai.concurrency"),
-			APIKeyEnv:   v.GetString("ai.api_key_env"),
-		},
+		AI: readAIConfig(v, "ai"),
 	}
 
 	// AI key 解析：WEREWOLF_AI_API_KEY > ai.api_key > ai.api_key_env 指向的环境变量 > 空值
@@ -142,33 +148,77 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("ai.concurrency", 1)
 	v.SetDefault("ai.api_key", "")
 	v.SetDefault("ai.api_key_env", "OPENAI_API_KEY")
+	v.SetDefault("ai.timeout_ms", 0)
+}
+
+func readAIConfig(v *viper.Viper, prefix string) AIConfig {
+	config := AIConfig{
+		Provider:    v.GetString(prefix + ".provider"),
+		BaseURL:     v.GetString(prefix + ".base_url"),
+		Model:       v.GetString(prefix + ".model"),
+		Concurrency: v.GetInt(prefix + ".concurrency"),
+		APIKeyEnv:   v.GetString(prefix + ".api_key_env"),
+		TimeoutMS:   v.GetInt(prefix + ".timeout_ms"),
+	}
+
+	fallback := FallbackAIConfig{
+		Provider:  v.GetString(prefix + ".fallback.provider"),
+		BaseURL:   v.GetString(prefix + ".fallback.base_url"),
+		Model:     v.GetString(prefix + ".fallback.model"),
+		APIKeyEnv: v.GetString(prefix + ".fallback.api_key_env"),
+		TimeoutMS: v.GetInt(prefix + ".fallback.timeout_ms"),
+	}
+	if hasFallbackConfig(fallback) {
+		config.Fallback = &fallback
+	}
+
+	return config
+}
+
+func hasFallbackConfig(cfg FallbackAIConfig) bool {
+	return cfg.Provider != "" || cfg.BaseURL != "" || cfg.Model != "" || cfg.APIKey != "" || cfg.APIKeyEnv != "" || cfg.TimeoutMS != 0
 }
 
 // resolveAIKey 按 WEREWOLF_AI_API_KEY > ai.api_key > ai.api_key_env 指向的环境变量 > 空值 顺序解析
 func resolveAIKey(v *viper.Viper, cfg *Config) {
-	// 最高优先级：WEREWOLF_AI_API_KEY 环境变量
-	// 必须直接检查 os.Getenv 而非 v.GetString，因为 AutomaticEnv 会使两者混淆
-	directEnvKey := os.Getenv("WEREWOLF_AI_API_KEY")
+	resolveAIConfigKey(v, &cfg.AI, "ai")
+	if cfg.AI.Fallback != nil {
+		resolveFallbackAIConfigKey(v, cfg.AI.Fallback, "ai.fallback")
+	}
+}
+
+func resolveAIConfigKey(v *viper.Viper, cfg *AIConfig, keyPath string) {
+	cfg.APIKey = resolveAPIKeyValue(v, keyPath, cfg.APIKeyEnv)
+}
+
+func resolveFallbackAIConfigKey(v *viper.Viper, cfg *FallbackAIConfig, keyPath string) {
+	cfg.APIKey = resolveAPIKeyValue(v, keyPath, cfg.APIKeyEnv)
+}
+
+func resolveAPIKeyValue(v *viper.Viper, keyPath string, apiKeyEnv string) string {
+	directEnvKey := os.Getenv(envKeyFor(keyPath + ".api_key"))
 	if directEnvKey != "" {
-		cfg.AI.APIKey = directEnvKey
-		return
+		return directEnvKey
 	}
 
-	// 其次：配置文件中的 ai.api_key（AutomaticEnv 已读取，GetString 返回文件+环境变量的最高优先级值）
-	fileKey := v.GetString("ai.api_key")
+	fileKey := v.GetString(keyPath + ".api_key")
 	if fileKey != "" {
-		cfg.AI.APIKey = fileKey
-		return
+		return fileKey
 	}
 
-	// 再次：ai.api_key_env 指向的环境变量
-	if cfg.AI.APIKeyEnv != "" {
-		if val, ok := os.LookupEnv(cfg.AI.APIKeyEnv); ok {
-			cfg.AI.APIKey = val
-			return
+	if apiKeyEnv != "" {
+		if val, ok := os.LookupEnv(apiKeyEnv); ok {
+			return val
 		}
 	}
 
-	// 最终：空值
-	cfg.AI.APIKey = ""
+	return ""
+}
+
+func envKeyFor(keyPath string) string {
+	clean := strings.TrimPrefix(filepath.ToSlash(keyPath), "/")
+	clean = strings.ReplaceAll(clean, "/", ".")
+	clean = strings.ReplaceAll(clean, ".", "_")
+	clean = strings.ReplaceAll(clean, "-", "_")
+	return "WEREWOLF_" + strings.ToUpper(clean)
 }

@@ -1,0 +1,4 @@
+- [x] 验证 AI 平台在真实提示词和当前模型配置下是否正常返回内容。
+- [x] 复现 `POST /api/game/next` 的长时间挂起，并记录耗时和调用路径证据。
+- [x] 在 AI provider / service 层实现最小修复，避免单次外部调用把整次阶段推进拖死。
+- [x] 验证 `start`、`state`、`messages`、`next` 的核心链路，确认 hotfix 生效。

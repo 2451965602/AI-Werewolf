@@ -43,6 +43,22 @@ func TestBuildProviderReturnsEinoProvider(t *testing.T) {
 	}
 }
 
+func TestBuildProviderWrapsFallbackProviderWhenConfigured(t *testing.T) {
+	provider, err := BuildProvider(config.AIConfig{
+		Provider:    "fallback",
+		Concurrency: 1,
+		Fallback: &config.FallbackAIConfig{
+			Provider: "fallback",
+		},
+	})
+	if err != nil {
+		t.Fatalf("BuildProvider() error = %v", err)
+	}
+	if _, ok := provider.(*FailoverProvider); !ok {
+		t.Fatalf("BuildProvider() type = %T, want *ai.FailoverProvider", provider)
+	}
+}
+
 func TestBuildProviderRejectsIncompleteEinoConfig(t *testing.T) {
 	_, err := BuildProvider(config.AIConfig{Provider: "eino", Concurrency: 1})
 	if err == nil {
