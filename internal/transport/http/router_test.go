@@ -39,7 +39,7 @@ func (s *fakeGameService) GetMessages(context.Context) ([]domain.Message, error)
 }
 
 func TestStartGameEndpoint(t *testing.T) {
-	router := NewRouter(&fakeGameService{state: domain.NewGame()})
+	router := NewRouter(&fakeGameService{state: domain.NewGame()}, ":0")
 	response := perform(router, "POST", "/api/game/start")
 	if response.StatusCode() != 200 {
 		t.Fatalf("expected 200, got %d body=%s", response.StatusCode(), response.Body())
@@ -47,7 +47,7 @@ func TestStartGameEndpoint(t *testing.T) {
 }
 
 func TestNextPhaseEndpoint(t *testing.T) {
-	router := NewRouter(&fakeGameService{state: domain.NewGame()})
+	router := NewRouter(&fakeGameService{state: domain.NewGame()}, ":0")
 	response := perform(router, "POST", "/api/game/next")
 	if response.StatusCode() != 200 {
 		t.Fatalf("expected 200, got %d body=%s", response.StatusCode(), response.Body())
@@ -58,7 +58,7 @@ func TestNextPhaseEndpoint(t *testing.T) {
 }
 
 func TestGetStateEndpoint(t *testing.T) {
-	router := NewRouter(&fakeGameService{state: domain.NewGame()})
+	router := NewRouter(&fakeGameService{state: domain.NewGame()}, ":0")
 	response := perform(router, "GET", "/api/game/state")
 	if response.StatusCode() != 200 {
 		t.Fatalf("expected 200, got %d body=%s", response.StatusCode(), response.Body())
@@ -66,7 +66,7 @@ func TestGetStateEndpoint(t *testing.T) {
 }
 
 func TestGetMessagesEndpoint(t *testing.T) {
-	router := NewRouter(&fakeGameService{messages: []domain.Message{{Content: "hello"}}})
+	router := NewRouter(&fakeGameService{messages: []domain.Message{{Content: "hello"}}}, ":0")
 	response := perform(router, "GET", "/api/game/messages")
 	if response.StatusCode() != 200 {
 		t.Fatalf("expected 200, got %d body=%s", response.StatusCode(), response.Body())
@@ -77,7 +77,7 @@ func TestGetMessagesEndpoint(t *testing.T) {
 }
 
 func TestHealthEndpoint(t *testing.T) {
-	router := NewRouter(&fakeGameService{})
+	router := NewRouter(&fakeGameService{}, ":0")
 	response := perform(router, "GET", "/api/game/health")
 	if response.StatusCode() != 200 {
 		t.Fatalf("expected 200, got %d body=%s", response.StatusCode(), response.Body())
@@ -85,7 +85,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestErrorResponse(t *testing.T) {
-	router := NewRouter(&fakeGameService{err: errors.New("boom")})
+	router := NewRouter(&fakeGameService{err: errors.New("boom")}, ":0")
 	response := perform(router, "POST", "/api/game/start")
 	if response.StatusCode() != 500 {
 		t.Fatalf("expected 500, got %d body=%s", response.StatusCode(), response.Body())
@@ -96,10 +96,17 @@ func TestErrorResponse(t *testing.T) {
 }
 
 func TestNoStateReturnsNotFound(t *testing.T) {
-	router := NewRouter(&fakeGameService{err: application.ErrNoGameState})
+	router := NewRouter(&fakeGameService{err: application.ErrNoGameState}, ":0")
 	response := perform(router, "GET", "/api/game/state")
 	if response.StatusCode() != 404 {
 		t.Fatalf("expected 404, got %d body=%s", response.StatusCode(), response.Body())
+	}
+}
+
+func TestRouterUsesConfiguredAddress(t *testing.T) {
+	router := NewRouter(&fakeGameService{}, "127.0.0.1:18080")
+	if got := router.GetOptions().Addr; got != "127.0.0.1:18080" {
+		t.Fatalf("expected configured addr, got %q", got)
 	}
 }
 

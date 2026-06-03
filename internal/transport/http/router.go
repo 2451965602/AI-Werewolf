@@ -23,8 +23,8 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func NewRouter(service GameService) *server.Hertz {
-	h := server.Default()
+func NewRouter(service GameService, addr string) *server.Hertz {
+	h := server.Default(server.WithHostPorts(addr))
 	h.POST("/api/game/start", func(ctx context.Context, c *app.RequestContext) {
 		state, err := service.StartGame(ctx)
 		writeState(c, state, err)

@@ -1,0 +1,14 @@
+{
+  "change": "configure-env-file-priority",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "3ccb10da080eda74474c2c9e9e1a38e38307c97357e980814b4b33bdcf2820ac",
+  "files": [
+    { "path": "openspec/changes/configure-env-file-priority/proposal.md", "sha256": "4c26a9333b9720acd035f80218eedc5acb996130fd40a405bda3ef667c4a84fc" },
+    { "path": "openspec/changes/configure-env-file-priority/design.md", "sha256": "527725c644c34d233e558c37813a1169d4947091f73d682e3e4d0bda80e37405" },
+    { "path": "openspec/changes/configure-env-file-priority/tasks.md", "sha256": "612e48de8b0dd34cbdc6d6d74e6519996e95eed919a892a46d0da3ac4ba844a2" },
+    { "path": "openspec/changes/configure-env-file-priority/specs/runtime-configuration/spec.md", "sha256": "de00bdfae06c3a5b143142e9ac63b7294cabff8b71b7a7744d28514890123db4" }
+  ]
+}
